@@ -17,3 +17,9 @@ class UserOut(UserBase):
     
     class Config:
         orm_mode = True
+
+
+# 实现登录功能
+class UserLogin(BaseModel):
+    email: str
+    password: str
