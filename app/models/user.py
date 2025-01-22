@@ -16,3 +16,5 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     # 帖子功能
     posts = relationship("Post", back_populates="author")
+    # 评论功能
+    comments = relationship("Comment", back_populates="author")
