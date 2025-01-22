@@ -4,6 +4,7 @@ from typing import List
 import logging  # 添加日志
 from .. import models, schemas
 from ..database import get_db
+from ..utils.auth import get_current_user
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +19,9 @@ router = APIRouter(
 @router.post("/", response_model=schemas.PostOut)
 def create_post(
     post: schemas.PostCreate, 
-    db: Session = Depends(get_db)):
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
 
     try:
         # 首先查询确保用户存在
@@ -69,8 +72,16 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
 def update_post(
     post_id: int,
     post_update: schemas.PostCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
+    # 检查是否是帖子作者
+    if db_post.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+    
     # 查找帖子
     db_post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not db_post:
