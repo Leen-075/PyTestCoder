@@ -1,8 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+import logging  # 添加日志
 from .. import models, schemas
 from ..database import get_db
+
+# 设置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(
     prefix="/posts",
@@ -14,25 +20,31 @@ def create_post(
     post: schemas.PostCreate, 
     db: Session = Depends(get_db)):
 
-    # 首先查询确保用户存在
-    user = db.query(models.User).first()  # 获取第一个用户用于测试
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No user found. Please create a user first"
-        )
-    
-    # 临时使用固定的用户ID进行测试
-    db_post = models.Post(
-        **post.model_dump(),
-        user_id=user.id #假设ID为1的用户存在
-    )
-    db.add(db_post)
     try:
+        # 首先查询确保用户存在
+        user = db.query(models.User).first()
+        logger.info(f"Found user: {user}")  # 记录用户信息
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No user found. Please create a user first"
+            )
+        
+   # 创建帖子
+        db_post = models.Post(
+            **post.model_dump(),
+            user_id=user.id
+        )
+        logger.info(f"Creating post: {post.model_dump()}")  # 记录帖子信息
+        
+        db.add(db_post)
         db.commit()
         db.refresh(db_post)
         return db_post
+    
     except Exception as e:
+        logger.error(f"Error creating post: {str(e)}")  # 记录错误
         db.rollback()
         # 添加日志或使用异常信息
         raise HTTPException(
@@ -41,7 +53,65 @@ def create_post(
         )
     return db_post
 
-@router.get("/", response_model=List[schemas.PostOut])
-def get_posts(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    posts = db.query(models.Post).offset(skip).limit(limit).all()
-    return posts
+# 获取单个帖子
+@router.get("/{post_id}", response_model=schemas.PostOut)
+def get_post(post_id: int, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found"
+        )
+    return post
+
+# 更新帖子
+@router.put("/{post_id}", response_model=schemas.PostOut)
+def update_post(
+    post_id: int,
+    post_update: schemas.PostCreate,
+    db: Session = Depends(get_db)
+):
+    # 查找帖子
+    db_post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not db_post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found"
+        )
+    
+    # 更新帖子信息
+    for var, value in post_update.model_dump().items():
+        setattr(db_post, var, value)
+    
+    try:
+        db.commit()
+        db.refresh(db_post)
+        return db_post
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not update post: {str(e)}"
+        )
+
+# 删除帖子
+@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(post_id: int, db: Session = Depends(get_db)):
+    # 查找帖子
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found"
+        )
+    
+    try:
+        db.delete(post)
+        db.commit()
+        return {"detail": "Post deleted"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not delete post: {str(e)}"
+        )
