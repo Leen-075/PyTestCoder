@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 @router.post("/", response_model=schemas.PostOut)
-def create_post(
+async def create_post(
     post: schemas.PostCreate, 
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -37,7 +37,7 @@ def create_post(
    # 创建帖子
         db_post = models.Post(
             **post.model_dump(),
-            user_id=user.id
+            user_id=current_user.id
         )
         logger.info(f"Creating post: {post.model_dump()}")  # 记录帖子信息
         
@@ -54,7 +54,7 @@ def create_post(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Could not create post: {str(e)}"  # 使用异常信息
         )
-    return db_post
+    
 
 # 获取单个帖子
 @router.get("/{post_id}", response_model=schemas.PostOut)

@@ -6,7 +6,7 @@ from typing import Optional
 
 class UserBase(BaseModel):
     username: str
-    email: str
+    email: EmailStr  # 改成 EmailStr 来验证邮箱格式
 
 class UserCreate(UserBase):
     password: str
@@ -16,10 +16,9 @@ class UserOut(UserBase):
     created_at: datetime
     
     class Config:
-        orm_mode = True
-
+        from_attributes = True  # 新版本 Pydantic 使用 from_attributes 替代 orm_mode
 
 # 实现登录功能
 class UserLogin(BaseModel):
-    email: str
+    email: EmailStr  # 这里也改成 EmailStr
     password: str
