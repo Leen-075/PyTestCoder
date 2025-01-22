@@ -2,6 +2,7 @@
 # app/models/user.py
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from ..database import Base
 
 class User(Base):
@@ -13,3 +14,5 @@ class User(Base):
     hashed_password = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    # 帖子功能
+    posts = relationship("Post", back_populates="author")
