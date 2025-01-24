@@ -6,6 +6,8 @@ import logging  # 添加日志
 from .. import models, schemas
 from ..database import get_db
 from ..utils.auth import get_current_user
+from fastapi.params import Query
+from ..models import Post
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -124,3 +126,33 @@ def delete_post(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Could not delete post: {str(e)}"
         )
+    
+
+@router.get("/", response_model=List[schemas.PostOut])
+def get_posts(
+    skip: int = 0, 
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """获取帖子列表"""
+    posts = db.query(models.Post)\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+    return posts
+
+@router.get("/search", response_model=List[schemas.PostOut])
+async def search_posts(
+    db: Session = Depends(get_db),
+    keyword: str = Query(None)
+):
+    """搜索帖子"""
+    query = db.query(models.Post)
+    
+    if keyword:
+        query = query.filter(
+            models.Post.title.ilike(f"%{keyword}%") |
+            models.Post.content.ilike(f"%{keyword}%")
+        )
+    
+    return query.all()

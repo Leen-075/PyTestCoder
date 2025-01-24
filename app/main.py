@@ -15,10 +15,12 @@ app = FastAPI(title="PyTestCoder")
 models.Base.metadata.create_all(bind=engine)
 
 # 注册路由 - 添加API前缀
-app.include_router(user.router, prefix=API_V1_PREFIX)
-app.include_router(post.router, prefix=API_V1_PREFIX)
-app.include_router(comment.router, prefix=API_V1_PREFIX)
-
+# app.include_router(user.router, prefix=API_V1_PREFIX)
+# app.include_router(post.router, prefix=API_V1_PREFIX)
+# app.include_router(comment.router, prefix=API_V1_PREFIX)
+app.include_router(post.router, prefix="/api/v1")
+app.include_router(user.router, prefix="/api/v1")
+app.include_router(comment.router, prefix="/api/v1")
 # 基础健康检查路由
 @app.get("/health")
 async def health_check():
