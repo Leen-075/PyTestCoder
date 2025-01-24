@@ -1,3 +1,4 @@
+# app/routes/post.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -22,24 +23,13 @@ async def create_post(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-
     try:
-        # 首先查询确保用户存在
-        user = db.query(models.User).first()
-        logger.info(f"Found user: {user}")  # 记录用户信息
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No user found. Please create a user first"
-            )
-        
-   # 创建帖子
+        # 移除多余的用户查询，因为 current_user 已经包含了用户信息
         db_post = models.Post(
             **post.model_dump(),
             user_id=current_user.id
         )
-        logger.info(f"Creating post: {post.model_dump()}")  # 记录帖子信息
+        logger.info(f"Creating post: {post.model_dump()}")
         
         db.add(db_post)
         db.commit()
@@ -47,14 +37,12 @@ async def create_post(
         return db_post
     
     except Exception as e:
-        logger.error(f"Error creating post: {str(e)}")  # 记录错误
+        logger.error(f"Error creating post: {str(e)}")
         db.rollback()
-        # 添加日志或使用异常信息
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Could not create post: {str(e)}"  # 使用异常信息
+            detail=f"Could not create post: {str(e)}"
         )
-    
 
 # 获取单个帖子
 @router.get("/{post_id}", response_model=schemas.PostOut)
@@ -67,7 +55,7 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
         )
     return post
 
-# 更新帖子
+# 修改更新帖子的函数，修正逻辑顺序
 @router.put("/{post_id}", response_model=schemas.PostOut)
 def update_post(
     post_id: int,
@@ -75,19 +63,19 @@ def update_post(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 检查是否是帖子作者
-    if db_post.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
-    
-    # 查找帖子
+    # 先查找帖子
     db_post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not db_post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Post not found"
+        )
+    
+    # 然后检查权限
+    if db_post.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
         )
     
     # 更新帖子信息
@@ -105,15 +93,25 @@ def update_post(
             detail=f"Could not update post: {str(e)}"
         )
 
-# 删除帖子
+# 添加认证到删除帖子的接口
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(post_id: int, db: Session = Depends(get_db)):
-    # 查找帖子
-    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+def delete_post(
+    post_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    post = db.query(models.Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Post not found"
+        )
+    
+    # 添加权限检查
+    if post.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
         )
     
     try:

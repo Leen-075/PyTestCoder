@@ -1,0 +1,13 @@
+Metadata-Version: 2.2
+Name: pytestcoder
+Version: 0.1
+Requires-Dist: fastapi
+Requires-Dist: sqlalchemy
+Requires-Dist: pytest
+Requires-Dist: httpx
+Requires-Dist: python-jose[cryptography]
+Requires-Dist: passlib[bcrypt]
+Requires-Dist: python-multipart
+Requires-Dist: pytest-asyncio
+Requires-Dist: pytest-cov
+Dynamic: requires-dist

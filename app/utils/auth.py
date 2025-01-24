@@ -1,3 +1,4 @@
+# app/utils/auth.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/users/login")
 
 # 创建访问令牌
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -24,11 +25,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=30)
         to_encode.update({"exp": expire})
-        logger.info(f"Creating token with data: {to_encode}")
+        logger.info(f"Creating token with data: {to_encode}")  # 添加日志
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        logger.info(f"Created token: {encoded_jwt}")
+        logger.info(f"Created token: {encoded_jwt}")  # 添加日志
         return encoded_jwt
     except Exception as e:
         logger.error(f"Error creating token: {str(e)}")

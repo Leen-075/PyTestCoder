@@ -1,8 +1,10 @@
+# app/routes/comment.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from .. import models, schemas
 from ..database import get_db
+from ..utils.auth import get_current_user
 
 router = APIRouter(
     prefix="/comments",
@@ -12,9 +14,10 @@ router = APIRouter(
 @router.post("/", response_model=schemas.CommentOut)
 def create_comment(
     comment: schemas.CommentCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)  # 添加认证依赖
 ):
-    # 验证帖子是否存在
+   # 验证帖子是否存在
     post = db.query(models.Post).filter(models.Post.id == comment.post_id).first()
     if not post:
         raise HTTPException(
@@ -22,17 +25,10 @@ def create_comment(
             detail="Post not found"
         )
     
-    # 临时使用第一个用户（后面会加入认证）
-    user = db.query(models.User).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No user found"
-        )
-
+    # 使用当前登录用户的ID
     db_comment = models.Comment(
         **comment.model_dump(),
-        user_id=user.id
+        user_id=current_user.id  # 使用认证用户的ID
     )
     
     try:
