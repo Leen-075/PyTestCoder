@@ -8,6 +8,7 @@ from ..database import get_db
 from ..utils.auth import get_current_user
 from fastapi.params import Query
 from ..models import Post
+from ..utils.security import sanitize_content 
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -156,3 +157,50 @@ async def search_posts(
         )
     
     return query.all()
+
+# 安全认证
+from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer()
+
+@router.get("/", response_model=List[schemas.PostOut])
+async def get_posts(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取帖子列表需要认证"""
+    posts = db.query(models.Post).all()
+    return posts
+
+
+# app/routes/post.py
+@router.post("/", response_model=schemas.PostOut)
+async def create_post(
+    post: schemas.PostCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """创建帖子时清理内容"""
+    try:
+        # 清理输入内容
+        cleaned_title = sanitize_content(post.title)
+        cleaned_content = sanitize_content(post.content)
+        
+        db_post = models.Post(
+            title=cleaned_title,
+            content=cleaned_content,
+            user_id=current_user.id
+        )
+        
+        db.add(db_post)
+        db.commit()
+        db.refresh(db_post)
+        return db_post
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not create post: {str(e)}"
+        )
